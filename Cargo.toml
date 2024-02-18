@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "thermometer",
+    "udp_connections",
+]
+
+workspace.resolver = "2"
