@@ -1,5 +1,5 @@
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket};
-
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use tokio::net::UdpSocket;
 use crate::thermometr::Thermometr;
 
 pub struct ThermoSocket {
@@ -15,9 +15,9 @@ impl ThermoSocket {
         Self { socket_addr: socket, thermometer: thermo}
     }
 
-    pub fn bind_socket(&self) -> Result<UdpSocket, std::io::Error> {
+    pub async fn bind_socket(&self) -> Result<UdpSocket, std::io::Error> {
         let to_socket_addr = self.socket_addr;
-        UdpSocket::bind(to_socket_addr)
+        UdpSocket::bind(to_socket_addr).await
     }
 
     pub fn get_addr(&self) -> String {
@@ -37,23 +37,23 @@ mod test {
         let _new_thermo = ThermoSocket::new([127, 0, 0, 1], 54433);
     }
 
-    #[test]
-    fn test_bind_thermosocket() {
+    #[tokio::test]
+    async fn test_bind_thermosocket() {
         let new_thermo = ThermoSocket::new([127, 0, 0, 1], 8080);
-        new_thermo.bind_socket().expect("All is bad");
+        new_thermo.bind_socket().await.expect("All is bad");
     }
 
-    #[test]
-    fn test_get_temp() {
+    #[tokio::test]
+    async fn test_get_temp() {
         let mut new_thermo = ThermoSocket::new([127, 0, 0, 1], 8080);
-        new_thermo.bind_socket().expect("All is bad");
+        new_thermo.bind_socket().await.expect("All is bad");
         new_thermo.get_temp();
     }
 
-    #[test]
-    fn test_get_addr() {
+    #[tokio::test]
+    async fn test_get_addr() {
         let new_thermo = ThermoSocket::new([127, 0, 0, 1], 8080);
-        new_thermo.bind_socket().expect("All is bad");
+        new_thermo.bind_socket().await.expect("All is bad");
         let addr_thermo = new_thermo.get_addr();
         assert_eq!(addr_thermo, new_thermo.socket_addr.to_string())
     }

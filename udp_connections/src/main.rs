@@ -1,25 +1,26 @@
-use std::{
-    net::UdpSocket,
-    thread::{self, sleep},
-    time::Duration,
-};
+use std::i32;
+
+use tokio::net::UdpSocket;
+use tokio::time;
+
 use thermometer::thermo_socket::ThermoSocket;
 
-fn main() -> std::io::Result<()> {
+#[tokio::main]
+async fn main() -> std::io::Result<()> {
     loop {
         let mut thermo_socket = ThermoSocket::new([127, 0, 0, 1], 6861);
         let data = thermo_socket.get_temp().to_be_bytes();
         let mut buff = [0u8; 4];
 
-        let receiver_socket = UdpSocket::bind("127.0.0.1:6851")?;
-        let sender_socket = thermo_socket.bind_socket()?;
+        let receiver_socket = UdpSocket::bind("127.0.0.1:6851").await?;
+        let sender_socket = thermo_socket.bind_socket().await?;
 
-        send(&sender_socket, "127.0.0.1:6851".to_string(), data)
+        send(&sender_socket, "127.0.0.1:6851".to_string(), data).await
             .expect("[ERROR]: With connection or sending data");
 
-        let handled_thread = thread::spawn(move || listen(&receiver_socket, &mut buff));
+        let handled_thread = tokio::spawn(async move { listen(&receiver_socket, &mut buff).await});
 
-        handled_thread.join().unwrap();
+        handled_thread.await.unwrap();
     }
 }
 
@@ -29,15 +30,15 @@ fn convert_to_arr(b_slice: &[u8]) -> [u8; 4] {
         .expect("[ERROR]: Slice with incorrect length")
 }
 
-fn send(sender_socket: &UdpSocket, addr: String, data: [u8; 4]) -> Result<usize, std::io::Error> {
-    match sender_socket.connect(addr) {
+async fn send(sender_socket: &UdpSocket, addr: String, data: [u8; 4]) -> Result<usize, std::io::Error> {
+    match sender_socket.connect(addr).await {
         Ok(()) => {
             println!(
                 "Sended by the {} from the main thread",
                 &sender_socket.local_addr().unwrap()
             );
             let send_data = sender_socket
-                .send(&data)
+                .send(&data).await
                 .expect("[ERROR]: Error while sending data");
             Ok(send_data)
         }
@@ -45,8 +46,8 @@ fn send(sender_socket: &UdpSocket, addr: String, data: [u8; 4]) -> Result<usize,
     }
 }
 
-fn listen(receiver_socket: &UdpSocket, buff: &mut [u8]) {
-    match receiver_socket.recv_from(buff) {
+async fn listen(receiver_socket: &UdpSocket, buff: &mut [u8]) {
+    match receiver_socket.recv_from(buff).await {
         Ok(received) => {
             let filled_buff = &mut buff[..received.0 as _];
             let array = convert_to_arr(filled_buff);
@@ -56,7 +57,7 @@ fn listen(receiver_socket: &UdpSocket, buff: &mut [u8]) {
                 receiver_socket.local_addr().unwrap()
             );
             println!("\t\tTemperature: {:?}\n", temp);
-            sleep(Duration::from_secs(1));
+            time::sleep(time::Duration::from_secs(1)).await;
         }
         Err(e) => println!("recv function failed: {e:?}"),
     }

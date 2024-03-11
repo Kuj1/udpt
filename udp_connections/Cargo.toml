@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 thermometer = { version = "0.1.0", path = "../thermometer" }
+tokio = { version = "1.36.0", features = ["io-util", "net", "macros", "rt-multi-thread", "time"] }
